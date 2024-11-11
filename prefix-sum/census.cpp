@@ -2,109 +2,153 @@
 
 using namespace std;
 
-int search_min_1d(vector<int> left_b, vector<int> right_b, int l, int r, int n) {
-    int res = 0;
-    for (int index = l; index < n; index + (index & (-index))) {  
-        if (index <= r) {
-            res = min(res, right_b[index]);
-        } else {
-            break;
-        }
+template <class T> using comparison_t = T const &(T const &, T const &);
+
+int search_1d(  vector<int> &left_b,
+                vector<int> &right_b,
+                vector<int> &values,
+                int l,
+                int r,
+                int n, 
+                comparison_t<int> comp,
+                int initial_value) {
+    if (l == r)
+        return values[l];
+    if (l == r - 1)
+        return comp(values[l], values[r]);
+    int res = initial_value;
+    int last = l;
+    int index = l;
+    while(index + (index & (-index)) <= r) {
+        res = comp(res, right_b[index]);
+        index += (index & (-index));
+        last = index;
     }
-    for (int index = r; index != 0; index - (index & (-index))) {
-        if (index >= l) {
-            res = min(res, left_b[index]);
-        } else {
-            break;
-        }
+    index = r;
+    while(index - (index & (-index)) >= l) {
+        res = comp(res, left_b[index]);
+        index -= (index & (-index));
     }
-    return res;
+    return comp(res, values[last]);
 }
 
-
-int search_min_2d( 
-                vector<vector<int>> left_b,
-                vector<vector<int>> right_b,
-                int x1, int x2, int y1, int y2, int n) 
-{
-    int res = 0;
-    for (int index = y2; index != 0; index - (index & (-index)))
-    {
-        //For every row get the minimum in the range
-        res = min(res, search_min_1d(left_b[index], right_b[index], x1, x2, n));
-    }
-    return res;
-}
-
-void update_min_1d(
-                vector<int> left_b,
-                vector<int> right_b,
+void update_1d( vector<int> &left_b,
+                vector<int> &right_b,
+                vector<int> &values,
                 int target,
                 int value,
-                int n) 
-{
-    int res = 0; //Minimum yet found
-    int right_idx = target - 1; // node at "index"(y) controls [left_bound...left_idx...right_idx=i=index)]
-    int left_idx = target + 1;
-   
-    for(int index = target; index < n; index + (index & (-index))) {
-        int left_bound = index - (index &(-index)) + 1;
+                int n, 
+                comparison_t<int> comp,
+                int initial_value) {
+    
+    // --------------------------------------------------------------------------
+    // >>>>>> Start Code for updating left binomial
+
+    int res = value; // Arbitrary intialize
+    int left_idx = target - 1; // p-1
+    int right_idx = target + 1; // p+1
+    // Main index loop for updating
+    for (int index = target; index < n; index += (index & (-index))) { //Current updating node
+        int left_bound = index - (index & (-index)) + 1;
         int right_bound = index;
-
-        while(right_idx - (right_idx & (-right_idx)) >= left_bound) {
-            right_idx = right_idx - (right_idx & (-right_idx));
-            res = min(res, right_b[right_idx]);
+        
+        while (left_idx != 0 && left_idx >= left_bound) {
+            res = comp(res, left_b[left_idx]);
+            left_idx -= (left_idx & (-left_idx));
+            //cout << "Right loop: right_idx = " << right_idx << endl;
         } 
-        while(left_idx + (left_idx & (-left_idx)) < right_bound) {
-            left_idx = left_idx + (left_idx & (-left_idx));
-            res = min(res, left_b[left_idx]);
-        }
 
-        left_b[index] = min(res, value);
+        while (right_idx < n && right_idx < right_bound) {
+            res = comp(res, right_b[right_idx]);
+            right_idx += (right_idx & (-right_idx));
+            //cout << "Left loop: left_idx = " << left_idx << endl;
+        }
+        left_b[index] = comp(res, values[index]);
     }
 
-    res = 0;
-    right_idx = target - 1;
-    left_idx = target + 1;
-    for(int index = target; index != 0; index - (index & (-index))) {
+    // <<<<<< End Code for updating left binomial 
+    // -------------------------------------------------------------------------- 
+
+    // --------------------------------------------------------------------------
+    // >>>>>> Start Code for updating right binomial
+    res = value;
+    left_idx = target - 1;
+    right_idx = target + 1;
+    for (int index = target; index != 0; index -= (index & (-index))) {
+        //cout << "index " << index << " and value is " << value << " init val is " << initial_value << endl;
         int left_bound = index;
-        int right_bound = index + (index &(-index)) + 1;
-        while(right_idx - (right_idx & (-right_idx)) > left_bound) {
-            right_idx = right_idx - (right_idx & (-right_idx));
-            res = min(res, right_b[right_idx]);
+        int right_bound = index + (index & (-index)) - 1;
+        while (left_idx != 0 && left_idx > left_bound) {
+            res = comp(res, left_b[left_idx]);
+            left_idx -= (left_idx & (-left_idx));
+            //cout << "Right loop: right_idx = " << right_idx << endl;
         } 
-        while(left_idx + (left_idx & (-left_idx)) <= right_bound) {
-            left_idx = left_idx + (left_idx & (-left_idx));
-            res = min(res, left_b[left_idx]);
+        while (right_idx < n && right_idx <= right_bound) {
+            res = comp(res, right_b[right_idx]);
+            right_idx += (right_idx & (-right_idx));
+            //cout << "Left loop: left_idx = " << left_idx << endl;
         }
-        right_b[index] = min(res, value);
+        right_b[index] = comp(res, values[index]);
     }
-
+    // <<<<<< End Code for updating left binomial 
+    // -------------------------------------------------------------------------- 
 }
-
-void update_min_2d(
-                vector<vector<int>> val_mat,
-                vector<vector<int>> left_b, 
-                vector<vector<int>> right_b,
-                int x, int y, int value, int n) 
-{
-    if (val_mat[x][y]==left_b[x][y]) {
-        left_b[x][y] = min(value, val_mat[x][y]);
-        left_b[x][y] = min(value, val_mat[x][y]);
-    } else {
-        update_min_1d(left_b[x], right_b[x], y, value, n);
-    }
-}
-
 
 int main() {
     int n; cin >> n;
-    vector<vector<int>> left_binomial   (n, vector<int>(n, 0));
-    vector<vector<int>> right_binomial  (n, vector<int>(n, 0));
-    vector<vector<int>> value_matrix    (n, vector<int>(n, 0));
-    for (int i=0; i<n; i++) {
-        for (int j=0; j<n; j++) {
+    n = n + 1;
+    //ofstream ot("output.txt");
+    vector<vector<int>> left_binomial_min   (n, vector<int>(n, INT_MAX));
+    vector<vector<int>> right_binomial_min  (n, vector<int>(n, INT_MAX));
+    vector<vector<int>> left_binomial_max   (n, vector<int>(n, INT_MIN));
+    vector<vector<int>> right_binomial_max  (n, vector<int>(n, INT_MIN));
+    vector<vector<int>> value_matrix        (n, vector<int>(n, 0));
+    //n^2(log(n))^2
+    for (int i=1; i<n; i++) {
+        for (int j=1; j<n; j++) {
             cin >> value_matrix[i][j];
+            //cout << "lol"<< endl;
+            update_1d(left_binomial_max[i], right_binomial_max[i], value_matrix[i], j, value_matrix[i][j], n, max<int>, INT_MIN);
+            update_1d(left_binomial_min[i], right_binomial_min[i], value_matrix[i], j, value_matrix[i][j], n, min<int>, INT_MAX);
+            if (i==9 && j==4) {
+                //cout << "max left binomial è " << left_binomial_max[i][j] << " right bino invece" << right_binomial_max[i][j] << endl;
+            }
         }
     }
-}
+    /*
+    cout << "max left binomial is " << endl;
+    for (int j=1; j<n; j++) {
+        cout << left_binomial_max[8][j] << " ";
+    }
+    cout << "max right binomial is " << endl;
+    for (int j=1; j<n; j++) {
+        cout << right_binomial_max[8][j] << " ";
+    }
+    cout << endl;
+    */
+    int q; cin >> q;
+    for (int i = 0; i < q; i++) {
+        char type; cin >> type;
+        switch (type)
+        {
+            case 'q': {
+                int x1, y1, x2, y2; cin >> x1 >> y1 >> x2 >> y2;
+                int ma = INT_MIN; int mi = INT_MAX;
+                for (int j=x1; j<=x2; j++) {
+                    ma = max(ma, search_1d(left_binomial_max[j], right_binomial_max[j], value_matrix[j], y1, y2, n, max, INT_MIN));
+                    mi = min(mi, search_1d(left_binomial_min[j], right_binomial_min[j], value_matrix[j], y1, y2, n, min, INT_MAX));
+                    //cout << " min is " << mi << endl;
+                }
+                cout << ma << " " << mi << endl;
+                break;
+            }
+            case 'c':
+                int x, y, val; cin >> x >> y >> val;
+                value_matrix[x][y] = val;
+                update_1d(left_binomial_max[x], right_binomial_max[x], value_matrix[x], y, val, n, max<int>, INT_MIN);
+                update_1d(left_binomial_min[x], right_binomial_min[x], value_matrix[x], y, val, n, min<int>, INT_MAX);
+        default:
+            break;
+        }
+    }
+}   
