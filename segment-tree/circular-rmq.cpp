@@ -2,42 +2,48 @@
 
 using namespace std;
 
-#define INF 1000001
+#define INF LLONG_MAX
+
+typedef long long ll;
 
 int n = 200000;
-vector<int> lazy(4*n);
-vector<int> segtree(4*n, 100000);
-vector<int> values(n);
+vector<ll> lazy(4*n, 0);
+vector<ll> segtree(4*n, LLONG_MAX);
+vector<ll> values(n, LLONG_MAX);
 
-void shift(int idx) {
-    if (lazy[idx]!=0) {
-        lazy[2*idx+1]=lazy[2*idx+2]=lazy[idx];
-        segtree[idx] += lazy[idx];
+void shift(int idx, int l, int r) {
+    if (l != r) {
+        //cout << "lazy is " << lazy[idx] << endl;
+        lazy[2*idx+1]   +=  lazy[idx];
+        lazy[2*idx+2]   +=  lazy[idx];
     }
+    segtree[idx]    += lazy[idx];
     lazy[idx] = 0;
 }
 
 /* Inc changes the intervals*/
-int inc(int idx, int v, int l, int r, int l0, int r0) { 
-    shift(idx);
+void inc(int idx, int v, int l, int r, int l0, int r0) { 
+    shift(idx, l0, r0);
     if (l0 > r || r0 < l) {
-        return INF;
+        return;
     }
     if (l0 >= l && r0 <= r) {
-        lazy[idx] +=v;
-        shift(idx);
-        return segtree[idx];
+        lazy[idx] += v;
+        shift(idx, l0, r0);
+        return;
+    }
+    if (l0 == r0) {
+        return;
     }
     int mid = l0+r0 >> 1;
-    int mini = min(inc(2*idx+1, v, l, r, l0, mid),
-    inc(2*idx+2, v, l , r, mid+1, r));
-    segtree[idx] = mini;
-    return mini;
+    inc(2*idx+1, v, l, r, l0, mid);
+    inc(2*idx+2, v, l , r, mid+1, r0);
+    segtree[idx] = min(segtree[2*idx+1], segtree[2*idx+2]);
 }
 
 
-int minimum(int idx, int l, int r, int l0, int r0) {
-    shift(idx);
+ll minimum(int idx, int l, int r, int l0, int r0) {
+    shift(idx, l0, r0);
     if (l0 > r || r0 < l) {
         return INF;
     }
@@ -48,19 +54,20 @@ int minimum(int idx, int l, int r, int l0, int r0) {
     if (l0 == r0) {
         return INF; // base case no overlap
     }
-    return min(minimum(2*idx+1, l, r, l0, mid),
-                minimum(2*idx+2, l, r, mid+1, r0));
+    int res = min(minimum(2*idx+1, l, r, l0, mid),
+                    minimum(2*idx+2, l, r, mid+1, r0));
+    segtree[idx] = min(segtree[2*idx+1], segtree[2*idx+2]);
+    return res;
 }
 
-int build(int idx, int l, int r) {
+void build(int idx, int l, int r) {
     if (l == r) {
         segtree[idx] = values[l];
-        return l;
+        return;
     }
     int mid = l + r >> 1;
-    segtree[idx] = min(build(2*idx+1, l, mid),
-                build(2*idx+2, mid+1, r)); 
-    return segtree[idx];
+    build(2*idx+1, l, mid); build(2*idx+2, mid+1, r);
+    segtree[idx] = min(segtree[2*idx+1], segtree[2*idx+2]);
 }
 
 int main() {
@@ -69,12 +76,17 @@ int main() {
     for (int i=0; i<len; i++) {
         cin >> values[i];
     }
-    int q; cin >> q;
     build(0, 0, len-1);
+    int q; cin >> q;
+    std::cin.ignore(); // Clear the leftover newline from the input buffer
     while (q--) {
         std::string s;
         std::getline(std::cin, s);
 
+        if (s.empty()) { // Handle empty lines
+            ++q; // Adjust the counter to retry the loop
+            continue;
+        }
         // Create a modifiable buffer
         char buffer[s.size() + 1]; // +1 for null terminator
         std::strcpy(buffer, s.c_str());
@@ -95,7 +107,7 @@ int main() {
 
             if (l > r) { // Circular query becomes two non-circular queries
                 inc(0, v, 0, r, 0, len - 1);
-                inc(0, v, l, len - 1, 0, n - 1);
+                inc(0, v, l, len - 1, 0, len - 1);
             } else {
                 inc(0, v, l, r, 0, len - 1);
             }
