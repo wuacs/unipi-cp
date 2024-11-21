@@ -30,10 +30,10 @@
 
 \subsection{Reasoning}
 
-First, note that for if we considered only the $\verb|Max|$ query we could use a standard segment tree, where at each node we store the maximum for the interval represented by the node. Our implementation uses this approach and adds support for the updates. \\
+First, note that if we considered only the $\verb|Max|$ query we could use a standard segment tree, where at each node we store the maximum for the interval represented by the node. Our implementation uses this approach and adds support for the updates. \\
 The $\verb|Update(i, j, T)|$ query affects only those positions $i\le k \le j$ which are strictly greater than $\verb|T|$, in a sense it \textit{levels} the maximum to be, at best, $\verb|T|$. 
 If the maximum is strictly greater than $\verb|T|$ then the interval's maximum needs to be set to $\verb|T|$.
-However, we might not want to update all the intervals, we can think therefore of a solution involving \textit{lazy propagation} where we do not update subintervals until the moment a $\verb|Max|$ query is queried on them. Then, when we trasverse the parent node, during the execution of a query, we push the minimum of all $\verb|T|$s queried on the interval to the child nodes, which will potentially change their maximum and push the lazy value to their children.\\
+However, we might not want to update all the intervals, we can think therefore of a solution involving \textit{lazy propagation} where we do not update subintervals until the moment a $\verb|Max|$(or $\verb|Update|$) query is queried on them. Then, when we traverse the parent node, during the execution of a query, we push the minimum of all $\verb|T|$s queried on the interval to the child nodes, which will potentially change their maximum and push the lazy value to their children.\\
 
 \subsection{Time Complexity}
 
@@ -42,15 +42,14 @@ However, we might not want to update all the intervals, we can think therefore o
 A $\verb|Max(i, j)|$ query needs to access all those nodes whose intervals partially overlap with interval $\verb|[i, j]|$(those that are totally wrapped in it immediately return). Since any node has at most two children intervals, in the worst case, both of them overlap with our target interval. But the number of nodes partially overlapping is bound to be at most 2 since indexes $\verb|i,j|$ belong to at most one of the intervals in a specific level of the tree, therefore the active nodes are only 4 per level, at worst. The lazy propagation overhead is constant: we just look up at $\verb|lazy[idx]|$ to see if there is any $\verb|T|$ not propagated, if that is the case the following is done:
 \begin{itemize}
     \item Set the maximum value of the node to the minimum between its current maximum value and the new lazy value propagated.
-    \item Set $\verb|lazy[left(idx)]|$ and $\verb|lazy[right(idx)]|$ to the minimum of current node's lazy value and their respective lazy values. An empty lazy value has default value $\verb|usize::MAX|$, indicating that it cannot lower the maximum of value of any node.
+    \item Set $\verb|lazy[left(idx)]|$ and $\verb|lazy[right(idx)]|$ to the minimum of current node's lazy value and their respective lazy values. An empty lazy value has default value $\verb|usize::MAX|$, indicating that it cannot lower any node.
 \end{itemize}
 The time complexity is $\mathcal{O}(log(n))$.
 
 \subsubsection{Update}
 
 A $\verb|Update(i, j, T)|$ query needs to update the lazy value of all the intervals partially or totally overlapping with interval $\verb|[i, j]|$ and set it to $\verb|min(T, lazy[idx])|$.
-The update is a constant factor and the number of nodes visited is the same as the one visited by a $\verb|Max|$ query.
-Therefore the time complexity is $\mathcal{O}(log(n))$
+Since the update with the propagation represent a constant factor and the number of nodes visited is in the same order as the one visited by a $\verb|Max|$ query, the time complexity is $\mathcal{O}(log(n))$.
 
 \subsection{Space Complexity}
 
