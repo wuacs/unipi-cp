@@ -24,6 +24,16 @@ vector<pair<int, pair<int, int>>> swap_by_index(const vector<int>& ph2,
     return output;
 }
 
+/* 
+Counting sort, with a little twist, for vector `input`, where `count`, `prefix`, `output`
+are passed iot reduce creation/deletion of self-explainable aux. arrays.
+`output` is where the result will be stored.
+
+The litte twist is that it is possible to make a little of playmaking
+with the value "-1". If `extractor` returns -1 for a particular index `j`
+the routine does not produce RTE but instead it sorts those values at the start of the array.
+Any other negative value produces undefined behaviour.
+*/
 template <typename T, typename Extractor>
 void counting_sort(Extractor extractor, 
                     const vector<T>& input,
@@ -155,10 +165,13 @@ vector<int> build_suffix_array_fast(string source) {
     return output;
 }
 
-/// @brief Builds a suffix array from a source in O(nlog^2n) time
+/// @brief Builds a suffix array from a source in O(nlog^2n) time (Manber and Myers)
 /// @param source the string for which we build the suffix array
-/// @return a vector of the size of source containing the suffixes ordered by lexicographical increasing order
-vector<int> build_suffix_array(string source) {
+/// @return a vector of the size of source containing the suffixes ordered by lexicographical increasing order and the 
+/// auxilliary indexes[i] and in position indexes[i].second[j].first there is the rank of the suffix in the 
+/// after j-th iteration's sorting. Similarly, indexes[i].second[j].second, indicates the rank of the suffix obtainable by suffix
+/// indexes[i].first after deleting its first 2^j characters. 
+pair<vector<int>, vector<pair<int, vector<pair<int, int>>>>> build_sa_doubling(string source) {
     int n = source.length();
     int l = ceil(log2(n));
     vector<pair<int, vector<pair<int, int>>>> indexes; 
@@ -237,6 +250,45 @@ vector<int> build_suffix_array(string source) {
     for (int i=0; i<n; i++) {
         output.push_back(indexes[i].first);
     }
+    return make_pair(output, indexes);
+}
+
+/// @brief Builds the Longest Common Prefix, in O(logn) time, i.e. an array containing
+/// the longest common prefix between every two consecutive suffixes of string `source` using Manber and Myers approach.
+/// the function expects `source` to be at least of length 2 otherwise there is no comparision done.
+/// @return a vector of length `source.size()-2` integers where v[i] is the longest common prefix of the two suffixes
+/// source[i..] and source[i+1..]
+vector<int> build_lcp(const string source) {
+    const int n = source.length();
+    assert(n > 1);
+    const int l = ceil(log2(n));
+    vector<int> output(n-1, 0);
+    vector<int> invert(n, 0);
+    auto pair = build_sa_doubling(source);
+    const vector<int> suffix_array = pair.first;
+    const vector<std::pair<int, vector<std::pair<int, int>>>> ranks = pair.second;
+    for (int i = 0; i < n; i++) { // Build invert array, invert[i] = j iff suffixArray[j] = i
+        invert[suffix_array[i]] = i;
+    }
+    for (int i = 0; i < n - 1; i++) {
+        int x = invert[i];
+        int y = invert[i+1];
+        int power = pow(2, l); 
+        int curr_len = 0;
+        for (int len = l; len >= 0; len --) {            
+            if (ranks[x].second[len].first == ranks[y].second[len].first) {
+                curr_len += power;
+                if (ranks[x].first + power >= n || ranks[y].first + power >= n) {
+                    power /= 2;
+                    break;
+                }
+                x = invert[ranks[x].first+power];
+                y = invert[ranks[y].first+power];
+            }
+            power /= 2;
+        }
+        output[i] = curr_len;
+    }
     return output;
 }
 
@@ -249,10 +301,23 @@ void test_build_suffix() {
             cout << s.substr(i) << endl;
         }
     }
-    
+}
+
+void test_build_lcp() {
+    int n; cin >> n; cin.ignore(1);
+    while(n--) {
+        string s; getline(cin, s);
+        auto v = build_lcp(s);
+        for(int i=0; i<s.size()-1; i++) {
+            cout << "between: " << s.substr(i) << " and " << s.substr(i+1) 
+            << " lcp is " << v[i] << endl;
+        }
+
+    }
 }
 
 int main() {
     //test_segfault();
-    test_build_suffix();
+    //test_build_suffix();
+    test_build_lcp();
 }
