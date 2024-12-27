@@ -23,7 +23,7 @@ int main() {
             }
         }
     }
-
+    
     // Count all distinct values across all lengths <= k
     unordered_set<int> distinctValues;
     for (int q = 1; q <= k; q++) {
